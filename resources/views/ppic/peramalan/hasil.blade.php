@@ -1,0 +1,149 @@
+@extends('layouts.ppic')
+
+@section('title', 'Hasil Peramalan')
+
+@section('content')
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Hasil Peramalan Fuzzy Time Series Chen</h1>
+
+    {{-- Info Umum --}}
+    <div class="mb-4">
+        <strong>Kategori:</strong> {{ ucfirst($kategori) }}<br>
+        <strong>Jenis Barang:</strong> {{ ucfirst($jenis_barang) }}<br>
+        <strong>Periode:</strong> {{ implode(', ', $tahun) }}
+    </div>
+
+    {{-- 1. Himpunan Semesta --}}
+    <h5 class="mt-4">1. Himpunan Semesta</h5>
+    <table class="table table-bordered table-sm">
+        <thead class="table-secondary">
+            <tr>
+                <th>Data Min</th>
+                <th>Data Max</th>
+                <th>Min - D</th>
+                <th>Max + D</th>
+                <th>Jumlah Interval</th>
+                <th>Panjang Interval</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ number_format($semesta['min'], 0, ',', '.') }}</td>
+                <td>{{ number_format($semesta['max'], 0, ',', '.') }}</td>
+                <td>{{ number_format($semesta['min_d'], 0, ',', '.') }}</td>
+                <td>{{ number_format($semesta['max_d'], 0, ',', '.') }}</td>
+                <td>{{ $semesta['jumlah_interval'] }}</td>
+                <td>{{ number_format($semesta['panjang_interval'], 0, ',', '.') }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {{-- 2. Fuzzy Set --}}
+    <h5 class="mt-4">2. Fuzzy Set</h5>
+<table class="table table-bordered table-sm">
+    <thead class="table-secondary">
+        <tr>
+            <th>Interval</th>
+            <th>Fuzzy Set</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($fuzzySets as $fs)
+        <tr>
+            <td>
+                @php
+                    [$awal, $akhir] = explode(' - ', $fs['range']);
+                    $awal = number_format($awal, 0, ',', '.');
+                    $akhir = number_format($akhir, 0, ',', '.');
+                @endphp
+                {{ $awal }} - {{ $akhir }}
+            </td>
+            <td>{{ $fs['label'] }}</td>
+        </tr>
+        @endforeach
+    </tbody>
+</table>
+
+    {{-- 3. Fuzzifikasi --}}
+    <h5 class="mt-4">3. Fuzzifikasi Data Historis</h5>
+    <table class="table table-bordered table-sm">
+        <thead class="table-secondary">
+            <tr>
+                <th>Bulan</th>
+                <th>Tahun</th>
+                <th>Data</th>
+                <th>Fuzzy</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($fuzzifikasi as $row)
+            <tr>
+                <td>{{ $row['bulan'] }}</td>
+                <td>{{ $row['tahun'] }}</td>
+                <td>{{ number_format($row['nilai'], 0, ',', '.') }}</td>
+                <td>{{ $row['fuzzy'] }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    {{-- 4. FLR --}}
+    <h5 class="mt-4">4. Fuzzy Logical Relationship (FLR)</h5>
+    <table class="table table-bordered table-sm">
+        <thead class="table-secondary">
+            <tr>
+                <th>Periode</th>
+                <th>FLR</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($flr as $item)
+            <tr>
+                <td>{{ $item['periode'] }}</td>
+                <td>{{ $item['relasi'] }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    {{-- 5. FLRG --}}
+    <h5 class="mt-4">5. Fuzzy Logical Relationship Group (FLRG)</h5>
+    <table class="table table-bordered table-sm">
+        <thead class="table-secondary">
+            <tr>
+                <th>Fuzzy</th>
+                <th>Relasi</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($flrg as $key => $relasi)
+            <tr>
+                <td>{{ $key }}</td>
+                <td>{{ implode(', ', $relasi) }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    {{-- 6. Defuzzifikasi --}}
+    <h5 class="mt-4">6. Defuzzifikasi</h5>
+    <table class="table table-bordered table-sm">
+        <thead class="table-secondary">
+            <tr>
+                <th>Periode</th>
+                <th>Data Asli</th>
+                <th>Hasil Peramalan</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($defuzzifikasi as $d)
+            <tr>
+                <td>{{ $d['periode'] }}</td>
+                <td>{{ number_format($d['aktual'], 0, ',', '.') }}</td>
+                <td>{{ number_format($d['hasil'], 0, ',', '.') }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endsection
