@@ -2,49 +2,64 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Produksi;
-use App\Models\BahanBaku;
+use Illuminate\Http\Request;
+use App\Models\DataPeramalan;
 use App\Http\Controllers\Base\DashboardBaseController;
 
 class ManajerController extends DashboardBaseController
 {
-    // Halaman dashboard manajer produksi
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        $dataChart = $this->getDataChart();
+        $selectedTahun = (array) $request->input('tahun', []);
+        $kategori = $request->input('kategori');
+
+        $query = DataPeramalan::query();
+
+        if (!empty($selectedTahun)) {
+            $query->whereIn('tahun', $selectedTahun);
+        }
+
+        if ($kategori) {
+            $query->where('kategori', $kategori);
+        }
+
+        $records = $query->get();
+        // dd($records->first()->toArray());
+        $dataChart = [];
+
+        foreach ($records as $record) {
+            $label = "{$record->kategori} - {$record->jenis_barang}";
+            $hasilPeramalan = json_decode($record->hasil_peramalan, true);
+
+            if (!isset($hasilPeramalan['defuzzifikasi'])) {
+                continue;
+            }
+
+            $bulan = [];
+            $aktual = [];
+            $hasil = [];
+
+            foreach ($hasilPeramalan['defuzzifikasi'] as $item) {
+                $bulan[] = $item['periode'] ?? '-';
+                $aktual[] = $item['aktual'] ?? 0;
+                $hasil[] = $item['hasil'] ?? 0;
+            }
+
+            $dataChart[$label] = [
+                'bulan' => $bulan,
+                'aktual' => $aktual,
+                'hasil' => $hasil,
+            ];
+        }
+
+        $availableTahun = DataPeramalan::distinct()->pluck('tahun')->toArray();
 
         return view('manajer.dashboard', [
-            'title' => 'Dashboard Manajer',
-            'dataChart' => $dataChart
+            'dataChart' => $dataChart,
+            'availableTahun' => $availableTahun,
+            'selectedTahun' => $selectedTahun,
+            'kategori' => $kategori,
+            'title' => 'Dashboard Manajer Produksi'
         ]);
     }
-
-    // Halaman data produksi (versi awal tanpa filter dropdown)
-    public function produksi()
-{
-    $tambang = Produksi::where('kategori', 'tambang')->get();
-    $jaring = Produksi::where('kategori', 'jaring')->get();
-    $benang = Produksi::where('kategori', 'benang')->get();
-
-    return view('manajer.produksi', [
-        'title' => 'Data Produksi',
-        'tambang' => $tambang,
-        'jaring' => $jaring,
-        'benang' => $benang,
-    ]);
-}
-
-public function bahanBaku()
-{
-    $tambang = BahanBaku::where('kategori', 'Tambang')->orderBy('tahun')->get();
-    $jaring = BahanBaku::where('kategori', 'Jaring')->orderBy('tahun')->get();
-    $benang = BahanBaku::where('kategori', 'Benang')->orderBy('tahun')->get();
-
-    return view('manajer.bahanbaku', [
-        'title' => 'Data Bahan Baku',
-        'tambang' => $tambang,
-        'jaring' => $jaring,
-        'benang' => $benang
-    ]);
-}
 }

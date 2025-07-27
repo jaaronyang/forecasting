@@ -1,98 +1,95 @@
 @extends('layouts.ppic')
 
-@section('title', 'Dashboard PPIC')
-
 @section('content')
-<div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Dashboard PPIC</h1>
+<div class="container">
+    <h1 class="mb-4">Dashboard PPIC</h1>
 
-    {{-- Grafik Peramalan --}}
-    <div class="row mt-4">
-        <div class="col-xl-12">
-            <div class="card shadow">
-                <div class="card-header">
-                    <h6 class="m-0 font-weight-bold text-primary">Grafik Aktual vs Hasil Peramalan</h6>
-                </div>
-                <div class="card-body">
-                    {{-- Dropdown Filter --}}
-                    <select id="filterGrafik" class="form-control mb-3">
-                        <option value="">-- Pilih Grafik --</option>
-                        @foreach(array_keys($dataChart) as $label)
-                            <option value="{{ $label }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
-
-                    {{-- Canvas Grafik --}}
-                    <canvas id="chartCanvas" height="100"></canvas>
-                </div>
+    <form method="GET" action="{{ route('ppic.dashboard') }}" class="mb-4">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="tahun">Tahun</label>
+                <select name="tahun" class="form-control">
+    @foreach ($availableTahun as $th)
+        <option value="{{ $th }}" {{ $th == $selectedTahun ? 'selected' : '' }}>{{ $th }}</option>
+    @endforeach
+</select>
+            </div>
+            <div class="col-md-4">
+                <label for="kategori">Kategori</label>
+                <select name="kategori" class="form-control">
+                    <option value="produksi" {{ $kategori === 'produksi' ? 'selected' : '' }}>Produksi</option>
+                    <option value="bahanbaku" {{ $kategori === 'bahanbaku' ? 'selected' : '' }}>Bahan Baku</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Tampilkan</button>
             </div>
         </div>
-    </div>
+    </form>
+
+    @php $chartWithId = []; @endphp
+    @forelse ($dataChart as $label => $chart)
+        @php
+            $canvasId = 'chart_' . \Illuminate\Support\Str::slug($label, '_');
+            $chartWithId[$canvasId] = $chart;
+        @endphp
+        <div class="card mb-4">
+            <div class="card-header">
+                Grafik Perbandingan: {{ $label }}
+            </div>
+            <div class="card-body">
+                <canvas id="{{ $canvasId }}" width="400" height="200"></canvas>
+            </div>
+        </div>
+    @empty
+        <div class="alert alert-warning">Tidak ada data grafik yang tersedia.</div>
+    @endforelse
 </div>
 @endsection
 
-@push('scripts')
+@section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const allData = @json($dataChart);
-    const ctx = document.getElementById('chartCanvas').getContext('2d');
-    let chart;
+    const dataChart = @json($chartWithId);
 
-    function renderChart(label) {
-        const chartData = allData[label];
+    Object.entries(dataChart).forEach(([canvasId, data]) => {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) {
+            console.warn("Canvas not found for:", canvasId);
+            return;
+        }
 
-        if (chart) chart.destroy(); // Hapus grafik sebelumnya
-
-        chart = new Chart(ctx, {
+        new Chart(ctx, {
             type: 'line',
             data: {
-                labels: chartData.tahun,
+                labels: data.bulan,
                 datasets: [
                     {
                         label: 'Aktual',
-                        data: chartData.aktual,
-                        borderColor: 'rgba(75, 192, 192, 1)',
+                        data: data.aktual,
+                        borderColor: 'blue',
                         fill: false,
-                        tension: 0.3
+                        tension: 0.1
                     },
                     {
-                        label: 'Hasil Peramalan',
-                        data: chartData.hasil,
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderDash: [5, 5],
+                        label: 'Hasil',
+                        data: data.hasil,
+                        borderColor: 'red',
                         fill: false,
-                        tension: 0.3
+                        tension: 0.1
                     }
                 ]
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: {
-                        position: 'top'
-                    },
                     title: {
                         display: true,
-                        text: 'Grafik Peramalan ' + label
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
+                        text: canvasId.replace('chart_', '').replace(/_/g, ' ').toUpperCase()
                     }
                 }
             }
         });
-    }
-
-    document.getElementById('filterGrafik').addEventListener('change', function () {
-        const selected = this.value;
-        if (selected) {
-            renderChart(selected);
-        } else {
-            if (chart) chart.destroy();
-        }
     });
-});
 </script>
-@endpush
+@endsection

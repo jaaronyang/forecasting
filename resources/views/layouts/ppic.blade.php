@@ -20,6 +20,9 @@
     <!-- Custom styles for this template-->
     <link href="{{ asset('assets/css/sb-admin-2.min.css') }}" rel="stylesheet">
 
+    <!-- Favicon -->
+<link rel="icon" href="{{ asset('logo.arida.png') }}" type="image/png">
+
 
 </head>
 

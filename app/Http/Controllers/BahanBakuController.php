@@ -133,4 +133,17 @@ class BahanBakuController extends Controller
             'jumlah_bahanbaku' => str_replace('.', '', $request->jumlah_bahanbaku)
         ]);
     }
+    public function indexManajerBahanBaku()
+{
+    $tambang = BahanBaku::where('kategori', 'tambang')->orderBy('tahun', 'desc')->get();
+    $jaring = BahanBaku::where('kategori', 'jaring')->orderBy('tahun', 'desc')->get();
+    $benang = BahanBaku::where('kategori', 'benang')->orderBy('tahun', 'desc')->get();
+
+    return view('manajer.bahanbaku', [
+        'title' => 'Data Bahan Baku',
+        'tambang' => $tambang,
+        'jaring' => $jaring,
+        'benang' => $benang
+    ]);
+}
 }

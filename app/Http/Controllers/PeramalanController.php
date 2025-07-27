@@ -9,6 +9,7 @@ use App\Models\DataPeramalan;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\HasilPeramalan;
+use Carbon\Carbon;
 
 class PeramalanController extends Controller
 {
@@ -49,24 +50,26 @@ public function proses(Request $request)
     }
 
     $nilaiArray = $data->pluck('nilai')->toArray();
-    $min = min($nilaiArray);
-    $max = max($nilaiArray);
-    $jumlahData = count($data);
-    $jumlahTahun = $jumlahData / 12;
+$min = min($nilaiArray);
+$max = max($nilaiArray);
+$jumlahData = count($data);
+$jumlahTahun = $jumlahData / 12;
 
-    if ($jumlahTahun <= 1) {
-        $jumlah_interval = 4;
-    } elseif ($jumlahTahun <= 2) {
-        $jumlah_interval = 6;
-    } elseif ($jumlahTahun <= 3) {
-        $jumlah_interval = 7;
-    } else {
-        $jumlah_interval = round(sqrt($jumlahData));
-    }
+if ($jumlahData <= 13) {
+    $jumlah_interval = 4;
+} elseif ($jumlahData <= 25) {
+    $jumlah_interval = 6;
+} elseif ($jumlahData <= 37) {
+    $jumlah_interval = 8;
+} else {
+    // Misal ingin tetap pakai rumus, bisa lanjutkan pola: 4 + floor(jumlahData / 12 - 1) * 2
+    $jumlah_interval = 4 + (floor($jumlahData / 12) - 1) * 2;
+}
 
     $min_d = min($nilaiArray);
     $max_d = max($nilaiArray);
     $panjang_interval = ($max_d - $min_d) / $jumlah_interval;
+    $panjang_interval = round($panjang_interval, 2);
 
     $semesta = [
         'min' => $min,
@@ -160,44 +163,46 @@ public function proses(Request $request)
     }
 
     $defuzzifikasi = [];
-    for ($i = 0; $i < count($fuzzifikasi) - 1; $i++) {
-        $currentLabel = $fuzzifikasi[$i]['fuzzy'];
-        $nextPeriode = $fuzzifikasi[$i + 1]['bulan'];
-        $actual = $fuzzifikasi[$i + 1]['nilai'];
 
-        if (isset($flrg[$currentLabel])) {
-            $sum = 0;
-            $count = 0;
-            foreach ($flrg[$currentLabel] as $toLabel) {
-                if (isset($labelToMidValue[$toLabel])) {
-                    $sum += $labelToMidValue[$toLabel];
-                    $count++;
-                }
+// Hitung jumlah data aktual yang tersedia
+$jumlahAktual = count($fuzzifikasi) - 1;
+
+for ($i = 0; $i < $jumlahAktual; $i++) {
+    $currentLabel = $fuzzifikasi[$i]['fuzzy'];
+    $nextPeriode = $fuzzifikasi[$i + 1]['bulan'];
+    $tahunPeriode = $fuzzifikasi[$i + 1]['tahun'];
+    $actual = $fuzzifikasi[$i + 1]['nilai'];
+
+    if (isset($flrg[$currentLabel])) {
+        $sum = 0;
+        $count = 0;
+        foreach ($flrg[$currentLabel] as $toLabel) {
+            if (isset($labelToMidValue[$toLabel])) {
+                $sum += $labelToMidValue[$toLabel];
+                $count++;
             }
-            $forecast = $count ? round(($sum / $count), 2) : null;
-        } else {
-            $forecast = null;
         }
+        $forecast = $count ? round($sum / $count, 2) : null;
+    } else {
+        $forecast = null;
+    }
 
-        $defuzzifikasi[] = [
-            'periode' => $nextPeriode,
-            'aktual' => $actual,
-            'hasil' => $forecast
-        ];
+    $defuzzifikasi[] = [
+        'periode' => $nextPeriode,
+        'tahun' => $tahunPeriode,
+        'aktual' => $actual,
+        'hasil' => $forecast
+    ];
     }
 
     // ✅ Tambahkan prediksi untuk bulan berikutnya
-    $jumlahTahunRamalan = 2;
-    $totalRamalan = $jumlahTahunRamalan * 12;
-    $last = end($fuzzifikasi);
-    $lastFuzzy = $last['fuzzy'];
-    $lastBulanIndex = array_search($last['bulan'], $urutanBulan);
-    $nextTahun = (int) $last['tahun'];
-
-    for ($i = 0; $i < ($totalRamalan - (count($fuzzifikasi) - 1)); $i++) {
+    // ✅ Prediksi hanya 1 bulan ke depan
+        $last = end($fuzzifikasi);
+        $lastFuzzy = $last['fuzzy'];
+        $lastBulanIndex = array_search($last['bulan'], $urutanBulan);
         $nextBulanIndex = ($lastBulanIndex + 1) % 12;
-        if ($nextBulanIndex === 0) $nextTahun++;
         $nextBulan = $urutanBulan[$nextBulanIndex];
+        $nextTahun = (int) $last['tahun'] + ($nextBulanIndex === 0 ? 1 : 0);
 
         if (isset($flrg[$lastFuzzy])) {
             $sum = 0;
@@ -207,13 +212,6 @@ public function proses(Request $request)
                 $count++;
             }
             $forecast = $count ? round($sum / $count, 2) : null;
-
-            foreach ($fuzzySets as $set) {
-                if ($forecast >= $set['start'] && $forecast <= $set['end']) {
-                    $lastFuzzy = $set['label'];
-                    break;
-                }
-            }
         } else {
             $forecast = null;
         }
@@ -225,45 +223,67 @@ public function proses(Request $request)
             'tahun' => $nextTahun
         ];
 
-        $lastBulanIndex = $nextBulanIndex;
-    }
+        $defuzzifikasi = collect($defuzzifikasi)->values()->all();
 
-    $defuzzifikasi = collect($defuzzifikasi)->values()->all();
-
-    DataPeramalan::create([
-        'kategori' => $kategori,
-        'jenis_barang' => $jenis_barang,
-        'tahun' => json_encode($tahun),
-        'hasil_peramalan' => json_encode([
-            'semesta' => $semesta,
-            'fuzzySets' => $fuzzySets,
-            'fuzzifikasi' => $fuzzifikasi,
-            'flr' => $flr,
-            'flrg' => $flrg,
-            'defuzzifikasi' => $defuzzifikasi,
-        ]),
-    ]);
-
-    $jumlahBulanPerTahun = 12;
-    $tahunList = is_array($tahun) ? $tahun : [$tahun];
-
-    foreach ($defuzzifikasi as $index => $item) {
-        $tahunIndex = floor($index / $jumlahBulanPerTahun);
-        $tahunAktual = $item['tahun'] ?? ($tahunList[$tahunIndex] ?? end($tahunList));
-
-        HasilPeramalan::create([
-            'kategori' => ucfirst($kategori),
-            'jenis_barang' => ucfirst($jenis_barang),
-            'tahun' => $tahunAktual,
-            'bulan' => $item['periode'],
-            'aktual' => $item['aktual'],
-            'hasil' => $item['hasil'],
+        DataPeramalan::create([
+            'kategori' => $kategori,
+            'jenis_barang' => $jenis_barang,
+            'tahun' => json_encode($tahun),
+            'hasil_peramalan' => json_encode([
+                'semesta' => $semesta,
+                'fuzzySets' => $fuzzySets,
+                'fuzzifikasi' => $fuzzifikasi,
+                'flr' => $flr,
+                'flrg' => $flrg,
+                'defuzzifikasi' => $defuzzifikasi,
+            ]),
         ]);
-    }
+
+        $jumlahBulanPerTahun = 12;
+        $tahunList = is_array($tahun) ? $tahun : [$tahun];
+
+        foreach ($defuzzifikasi as $index => $item) {
+            $tahunIndex = floor($index / $jumlahBulanPerTahun);
+            $tahunAktual = $item['tahun'] ?? ($tahunList[$tahunIndex] ?? end($tahunList));
+
+            if (!is_null($item['aktual'])) {
+                HasilPeramalan::create([
+                    'kategori' => ucfirst($kategori),
+                    'jenis_barang' => ucfirst($jenis_barang),
+                    'tahun' => $tahunAktual,
+                    'bulan' => $item['periode'],
+                    'aktual' => $item['aktual'],
+                    'hasil' => $item['hasil'],
+                ]);
+            }
+        }
+    $hasilPeramalanTerakhir = end($defuzzifikasi);
+    $item = (object)[
+    'kategori' => $kategori,
+    'jenis_barang' => $jenis_barang,
+    'tahun' => $tahun
+];
+    $aktualValues = collect($defuzzifikasi)
+    ->pluck('aktual')
+    ->filter(fn($val) => !is_null($val))
+    ->values();
+
+$nilaiTerendah = $aktualValues->min();
+$nilaiTertinggi = $aktualValues->max();
+$jumlahData = $aktualValues->count();
+
+$bulanAwal = $fuzzifikasi[0]['bulan'];
+$tahunAwal = $fuzzifikasi[0]['tahun'];
+
+$lastIndex = count($defuzzifikasi) - 2; // -2 karena yang terakhir biasanya untuk prediksi
+$bulanAkhir = $defuzzifikasi[$lastIndex]['periode'] ?? '-';
+$tahunAkhir = $defuzzifikasi[$lastIndex]['tahun'] ?? '-';
+
 
     return view('ppic.peramalan.hasil', compact(
         'kategori', 'jenis_barang', 'tahun',
-        'semesta', 'fuzzySets', 'fuzzifikasi', 'flr', 'flrg', 'defuzzifikasi'
+        'semesta', 'fuzzySets', 'fuzzifikasi', 'flr', 'flrg', 'defuzzifikasi', 'hasilPeramalanTerakhir', 'item', 'nilaiTerendah', 'nilaiTertinggi', 'jumlahData',
+    'bulanAwal', 'tahunAwal', 'bulanAkhir', 'tahunAkhir'
     ))->with('title', 'Hasil Peramalan Fuzzy Time Series');
 }
 
@@ -286,37 +306,116 @@ return view('manajer.peramalan.index', [
 }
 
 
-    public function detail($id)
-    {
-        $item = DataPeramalan::findOrFail($id);
-        $data = json_decode($item->hasil_peramalan, true);
+ public function detail($id)
+{
+    $itemData = DataPeramalan::findOrFail($id);
+    $data = json_decode($itemData->hasil_peramalan, true);
 
-        return view('ppic.peramalan.detail', [
-            'item' => $item,
-            'semesta' => $data['semesta'],
-            'fuzzySets' => $data['fuzzySets'],
-            'fuzzifikasi' => $data['fuzzifikasi'],
-            'flr' => $data['flr'],
-            'flrg' => $data['flrg'],
-            'defuzzifikasi' => $data['defuzzifikasi'],
-            'title' => 'Detail Peramalan'
-        ]);
-    }
+    $defuzzifikasi = $data['defuzzifikasi'] ?? [];
 
-    public function download($id)
-    {
-        $item = DataPeramalan::findOrFail($id);
+    // Ambil hanya nilai aktual yang tidak null
+    $aktualValues = collect($defuzzifikasi)
+        ->pluck('aktual')
+        ->filter(fn($val) => !is_null($val))
+        ->values();
+
+    $nilaiTerendah = $aktualValues->min() ?? 0;
+    $nilaiTertinggi = $aktualValues->max() ?? 0;
+    $jumlahData = $aktualValues->count();
+
+    // Ambil periode awal dari fuzzifikasi
+    $fuzzifikasi = $data['fuzzifikasi'] ?? [];
+    $bulanAwal = $fuzzifikasi[0]['bulan'] ?? '-';
+    $tahunAwal = $fuzzifikasi[0]['tahun'] ?? '-';
+
+    // Ambil periode akhir dari defuzzifikasi (sebelum prediksi)
+    $lastIndex = count($defuzzifikasi) - 2; // -2 karena terakhir biasanya hasil prediksi
+    $bulanAkhir = $defuzzifikasi[$lastIndex]['periode'] ?? '-';
+    $tahunAkhir = $defuzzifikasi[$lastIndex]['tahun'] ?? '-';
+
+    // Buat ulang object item agar kompatibel dengan blade
+    $item = (object)[
+        'kategori' => $itemData->kategori,
+        'jenis_barang' => $itemData->jenis_barang,
+        'tahun' => $itemData->tahun,
+    ];
+
+    return view('ppic.peramalan.detail', [
+        'item' => $item,
+        'semesta' => $data['semesta'],
+        'fuzzySets' => $data['fuzzySets'],
+        'fuzzifikasi' => $fuzzifikasi,
+        'flr' => $data['flr'],
+        'flrg' => $data['flrg'],
+        'defuzzifikasi' => $defuzzifikasi,
+        'hasilPeramalanTerakhir' => end($defuzzifikasi),
+        'bulanAwal' => $bulanAwal,
+        'tahunAwal' => $tahunAwal,
+        'bulanAkhir' => $bulanAkhir,
+        'tahunAkhir' => $tahunAkhir,
+        'jumlahData' => $jumlahData,
+        'nilaiTerendah' => $nilaiTerendah,
+        'nilaiTertinggi' => $nilaiTertinggi,
+        'title' => 'Detail Peramalan'
+    ]);
+}
+
+
+  public function download($id)
+{
+    $item = DataPeramalan::findOrFail($id);
     $data = json_decode($item->hasil_peramalan, true);
 
+    // Ambil data awal dan akhir dari fuzzifikasi & defuzzifikasi
+    $fuzzifikasi = $data['fuzzifikasi'] ?? [];
+    $defuzzifikasi = $data['defuzzifikasi'] ?? [];
+
+    // Ambil periode awal dari fuzzifikasi pertama
+    $fuzzifikasi = $data['fuzzifikasi'] ?? [];
+    $bulanAwal = $fuzzifikasi[0]['bulan'] ?? '-';
+    $tahunAwal = $fuzzifikasi[0]['tahun'] ?? '-';
+
+    // Ambil periode akhir dari defuzzifikasi terakhir (bukan hasil ramalan terakhir)
+    $lastIndex = count($defuzzifikasi) - 2; // -2 karena terakhir biasanya hasil prediksi
+    $bulanAkhir = $defuzzifikasi[$lastIndex]['periode'] ?? '-';
+    $tahunAkhir = $defuzzifikasi[$lastIndex]['tahun'] ?? '-';
+
+    // Ambil hasil peramalan terakhir
+    $hasilPeramalanTerakhir = end($defuzzifikasi);
+
+    // Ambil data aktual untuk menghitung statistik
+    $aktual = array_filter(array_column($defuzzifikasi, 'aktual'));
+    $jumlahData = count($aktual);
+    $nilaiTerendah = $jumlahData > 0 ? min($aktual) : 0;
+    $nilaiTertinggi = $jumlahData > 0 ? max($aktual) : 0;
+
+    // Kirim data ke view PDF
     $pdf = Pdf::loadView('ppic.peramalan.pdf', [
         'item' => $item,
         'data' => $data,
+        'fuzzifikasi' => $fuzzifikasi,
+        'semesta' => $data['semesta'],
+        'fuzzySets' => $data['fuzzySets'],
+        'flr' => $data['flr'],
+        'flrg' => $data['flrg'],
+        'defuzzifikasi' => $defuzzifikasi,
+        'hasilPeramalanTerakhir' => $hasilPeramalanTerakhir,
+
+        // Variabel tambahan untuk kesimpulan
+        'bulanAwal' => $bulanAwal,
+        'tahunAwal' => $tahunAwal,
+        'bulanAkhir' => $bulanAkhir,
+        'tahunAkhir' => $tahunAkhir,
+        'jumlahData' => $jumlahData,
+        'nilaiTerendah' => $nilaiTerendah,
+        'nilaiTertinggi' => $nilaiTertinggi,
     ]);
 
     $filename = 'Peramalan_' . $item->kategori . '_' . $item->jenis_barang . '_' . now()->format('Ymd_His') . '.pdf';
-
     return $pdf->stream($filename);
-    }
+}
+
+
 
     public function preview($id)
 {
@@ -331,13 +430,20 @@ return view('manajer.peramalan.index', [
 }
 
     public function delete($id)
-    {
+{
+    try {
         $item = DataPeramalan::findOrFail($id);
         $item->delete();
 
-        return redirect()->route('peramalan.history')->with('success', 'Data peramalan berhasil dihapus.');
+        return redirect()
+            ->route('peramalan.history')
+            ->with('success', 'Data peramalan berhasil dihapus.');
+    } catch (\Exception $e) {
+        return redirect()
+            ->route('peramalan.history')
+            ->with('error', 'Terjadi kesalahan saat menghapus data.');
     }
-
+}
 
 
 public function indexManajer()

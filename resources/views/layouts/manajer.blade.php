@@ -20,6 +20,9 @@
     <!-- Custom styles for this template-->
     <link href="{{ asset('assets/css/sb-admin-2.min.css') }}" rel="stylesheet">
 
+    <!-- Favicon -->
+<link rel="icon" href="{{ asset('logo.arida.png') }}" type="image/png">
+
 </head>
 
 <body id="page-top">
@@ -57,16 +60,15 @@
     <div class="sidebar-heading">Forecasting</div>
 
     <!-- Data Produksi -->
-    <li class="nav-item {{ request()->routeIs('manajer.produksi') ? 'active' : '' }}">
-        <a class="nav-link" href="{{ route('manajer.produksi') }}">
+    <li class="nav-item {{ request()->routeIs('manajer.produksi.index') ? 'active' : '' }}">
+        <a class="nav-link" href="{{ route('manajer.produksi.index') }}">
             <i class="fas fa-industry"></i>
             <span>Data Produksi</span>
         </a>
     </li>
-
-    <!-- Data Bahan Baku -->
+     <!-- Data Bahan Baku -->
     <li class="nav-item">
-        <a class="nav-link {{ request()->routeIs('manajer.bahanbaku') ? 'active' : '' }}" href="{{ route('manajer.bahanbaku') }}">
+        <a class="nav-link {{ request()->routeIs('manajer.bahanbaku.index') ? 'active' : '' }}" href="{{ route('manajer.bahanbaku.index') }}">
     <i class="fas fa-fw fa-boxes"></i>
     <span>Data Bahan Baku</span>
 </a>
@@ -348,7 +350,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Bootstrap core JavaScript-->
     <script src="{{ asset('assets/vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('assets/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
@@ -365,7 +367,7 @@
     <!-- Page level custom scripts -->
     <script src="{{ asset('assets/js/demo/chart-area-demo.js') }}"></script>
     <script src="{{ asset('assets/js/demo/chart-pie-demo.js') }}"></script>
-
+@yield('scripts')
 </body>
 
 </html>

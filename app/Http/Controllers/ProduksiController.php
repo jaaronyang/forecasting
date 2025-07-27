@@ -210,5 +210,18 @@ public function deleteBenang($id)
 
     return redirect()->route('produksi.benang.index')->with('success', 'Data berhasil dihapus');
 }
+// === VIEW-ONLY MANAJER ===
+public function indexManajerProduksi()
+{
+    $tambang = Produksi::where('kategori', 'tambang')->orderBy('tahun', 'desc')->get();
+    $jaring = Produksi::where('kategori', 'jaring')->orderBy('tahun', 'desc')->get();
+    $benang = Produksi::where('kategori', 'benang')->orderBy('tahun', 'desc')->get();
 
+    return view('manajer.produksi', [
+    'title' => 'Data Produksi',
+    'tambang' => $tambang,
+    'jaring' => $jaring,
+    'benang' => $benang
+]);
+}
 }

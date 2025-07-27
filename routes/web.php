@@ -116,11 +116,9 @@ Route::middleware(['auth', 'role:ppic'])->group(function () {
 });
 
 
-
 // ========================== MANAJER ==========================
 Route::middleware(['auth', 'role:manajer'])->group(function () {
     Route::get('/manajer/dashboard', [ManajerController::class, 'dashboard'])->name('manajer.dashboard');
-    Route::get('/manajer/bahan-baku', [ManajerController::class, 'bahanBaku'])->name('manajer.bahanbaku');
 
     // Peramalan (MANAJER)
     Route::get('/manajer/peramalan', [PeramalanController::class, 'indexManajer'])->name('manajer.peramalan.index');
@@ -136,9 +134,11 @@ Route::middleware(['auth', 'role:manajer'])->group(function () {
     Route::delete('/pengujian/{id}/hapus', [PengujianController::class, 'destroy'])->name('pengujian.delete');
 });
 
-Route::middleware(['auth'])->group(function () {
-    Route::get('/manajer/produksi', [ManajerController::class, 'produksi'])->name('manajer.produksi');
+Route::middleware(['auth', 'role:manajer'])->group(function () {
+    Route::get('/manajer/produksi', [ProduksiController::class, 'indexManajerProduksi'])->name('manajer.produksi.index');
+    Route::get('/manajer/bahanbaku', [BahanBakuController::class, 'indexManajerBahanBaku'])->name('manajer.bahanbaku.index');
 });
+
 
 Route::prefix('manajer/peramalan')->name('manajer.peramalan.')->group(function () {
     Route::get('/', [PeramalanController::class, 'indexManajer'])->name('index');
