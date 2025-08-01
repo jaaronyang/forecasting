@@ -17,8 +17,8 @@ return new class extends Migration
         $table->id();
         $table->string('kategori'); // produksi / bahanbaku
         $table->string('jenis_barang'); // tambang / jaring / benang
-        $table->json('tahun'); // array tahun, disimpan dalam format JSON
-        $table->json('hasil_peramalan'); // semua hasil disimpan dalam bentuk JSON
+        $table->text('tahun'); // array tahun, disimpan dalam format text
+        $table->text('hasil_peramalan'); // semua hasil disimpan dalam bentuk text
         $table->timestamps();
     });
 }

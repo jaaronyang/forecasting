@@ -17,7 +17,7 @@ return new class extends Migration
     $table->id();
     $table->string('kategori'); // produksi / bahanbaku
     $table->string('jenis_barang'); // tambang, jaring, benang
-    $table->json('tahun');
+    $table->text('tahun');
     $table->double('mse');
     $table->double('mape');
     $table->timestamps();
