@@ -45,7 +45,7 @@
                                     </div>
                                     <div class="form-group">
                                     <div class=" mb-sm-0">
-                                        <input type="text" id="username" name="username" placeholder="Username" req class="form-control form-control-user">
+                                        <input type="text" id="username" name="username" placeholder="Username" required class="form-control form-control-user">
                                     </div>
                                 </div>
                                 <div class="form-group">
