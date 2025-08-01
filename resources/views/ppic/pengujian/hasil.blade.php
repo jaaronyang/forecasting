@@ -14,6 +14,7 @@
     <h1 class="h3 mb-4 text-gray-800">Hasil Pengujian Peramalan</h1>
 
     <!-- Ringkasan Hasil -->
+    <!-- Ringkasan Hasil -->
     <div class="card shadow-sm p-4 mb-4">
         <h5 class="font-weight-bold text-primary mb-3">Ringkasan Data</h5>
             <p><strong>Kategori:</strong> {{ $kategoriMap[$item->kategori] ?? ucfirst($item->kategori) }}</p>
@@ -29,27 +30,24 @@
     <strong>{{ number_format($mse, 3, '.', '.') }}</strong> dan nilai
     <strong>Mean Absolute Percentage Error (MAPE)</strong> adalah
     <strong>{{ number_format($mape, 3, '.', '.') }}%</strong>. Berdasarkan nilai tersebut, tingkat akurasi peramalan dikategorikan
-    <strong>
-        @if ($item->mape <= 10)
-            Sangat Baik
-        @elseif ($item->mape <= 20)
-            Baik
-        @elseif ($item->mape <= 50)
-            Cukup
-        @else
-            Kurang
-        @endif
-    </strong>.
-    Selain itu, diperoleh hasil nilai peramalan pada periode selanjutnya yaitu
-    <strong>{{ $bulanBerikutnya }} {{ $tahunBerikutnya }}</strong> sebesar
-    <strong>{{ number_format($hasilPeramalan, 0, '.', '.') }}</strong>. Nilai ini menunjukkan bahwa metode yang digunakan dalam sistem
-    @if ($item->mape <= 20)
+<strong>{{ $akurasi }}</strong>
+Selain itu, diperoleh hasil nilai peramalan pada periode selanjutnya yaitu
+<strong>{{ $bulanBerikutnya }} {{ $tahunBerikutnya }}</strong> sebesar
+<strong>{{ number_format($hasilPeramalan, 0, '.', '.') }}</strong>. Nilai ini menunjukkan bahwa metode yang digunakan dalam sistem
+
+@switch($akurasi)
+    @case('Sangat Baik')
+    @case('Baik')
         layak dijadikan acuan dalam pengambilan keputusan produksi dan pengadaan bahan baku.
-    @else
+        @break
+
+    @case('Cukup')
+    @case('Kurang')
         masih perlu dilakukan evaluasi lebih lanjut untuk meningkatkan akurasi pada masa mendatang.
-    @endif
+        @break
+@endswitch
 </p>
-    </div>
+
 
     <div class="row">
         <div class="col-md-6 mb-3">
@@ -72,21 +70,23 @@
     </div>
 
     <!-- Tabel Perbandingan -->
-    <h5 class="mt-4 mb-3 text-gray-800">Tabel Perbandingan Aktual vs Hasil</h5>
+    <div class="card shadow-sm p-4 mb-4">
+        <p class="text-center mb-0" style="font-size: 20px; font-weight: bold;">
+    Tabel Perbandingan Aktual vs Hasil</p><br>
     <div class="table-responsive">
         <table class="table table-bordered table-sm text-center align-middle">
             <thead class="thead-light">
-                <tr>
-                    <th>Bulan</th>
-                    <th>Tahun</th>
-                    <th>Aktual<br>(ribu)</th>
-                    <th>Hasil<br>(ribu)</th>
-                    <th>Selisih</th>
-                    <th>MSE</th>
-                    <th>MAPE (%)</th>
-                </tr>
-            </thead>
-            <tbody>
+    <tr>
+        <th>Bulan</th>
+        <th>Tahun</th>
+        <th>Aktual<br>(ribu)</th>
+        <th>Hasil<br>(ribu)</th>
+        <th>Selisih</th>
+        <th>MSE</th>
+        <th>MAPE (%)</th>
+    </tr>
+</thead>
+<tbody>
     @foreach ($data as $d)
         @php
             $aktual = $d['aktual'] ?? null;
@@ -115,7 +115,9 @@
         @endif
     @endforeach
 </tbody>
+
         </table>
+    </div>
     </div>
 
     <a href="{{ route('ppic.pengujian.index') }}" class="btn btn-secondary mt-4">

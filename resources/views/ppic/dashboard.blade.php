@@ -1,6 +1,6 @@
 @extends('layouts.ppic')
-
 @section('content')
+
 <div class="container">
     <h1 class="mb-4">Dashboard PPIC</h1>
 
@@ -10,7 +10,12 @@
                 <label for="tahun">Tahun</label>
                 <select name="tahun" class="form-control">
     @foreach ($availableTahun as $th)
-        <option value="{{ $th }}" {{ $th == $selectedTahun ? 'selected' : '' }}>{{ $th }}</option>
+        @php
+            // Hilangkan karakter tanda kutip dan kurung jika ada
+            $label = trim($th, '[]"');
+            $label = str_replace('","', ', ', $label); // kalau bentuknya array json satu string
+        @endphp
+        <option value="{{ $th }}" {{ $th == $selectedTahun ? 'selected' : '' }}>{{ $label }}</option>
     @endforeach
 </select>
             </div>
@@ -48,7 +53,8 @@
 @endsection
 
 @section('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js">
+</script>
 <script>
     const dataChart = @json($chartWithId);
 
@@ -62,21 +68,21 @@
         new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.bulan,
+                labels: data.bulan.map((bulan, i) => `${bulan} ${data.tahun[i]}`),
                 datasets: [
                     {
                         label: 'Aktual',
                         data: data.aktual,
                         borderColor: 'blue',
                         fill: false,
-                        tension: 0.1
+                        tension: 0.5
                     },
                     {
                         label: 'Hasil',
                         data: data.hasil,
                         borderColor: 'red',
                         fill: false,
-                        tension: 0.1
+                        tension: 0.5
                     }
                 ]
             },
@@ -85,7 +91,8 @@
                 plugins: {
                     title: {
                         display: true,
-                        text: canvasId.replace('chart_', '').replace(/_/g, ' ').toUpperCase()
+                        text: 'Grafik Perbandingan Aktual dan Hasil Peramalan - ' +
+      canvasId.replace('chart_', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
                     }
                 }
             }

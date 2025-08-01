@@ -6,6 +6,8 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">Riwayat Data Peramalan</h1>
 
+    <div class="card shadow-sm">
+        <div class="card-body table-responsive">
     <table class="table table-bordered table-sm">
         <thead class="table-secondary">
             <tr>
@@ -45,5 +47,7 @@
             @endforeach
         </tbody>
     </table>
+</div>
+    </div>
 </div>
 @endsection

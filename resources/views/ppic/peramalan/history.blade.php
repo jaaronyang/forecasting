@@ -5,7 +5,9 @@
 @section('content')
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">Riwayat Data Peramalan</h1>
-
+@if(session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
     <table class="table table-bordered table-sm">
         <thead class="table-secondary">
             <tr>

@@ -132,6 +132,23 @@
 @endforeach
     </tbody>
 </table>
+@php
+    use Carbon\Carbon;
+    $tanggalCetak = Carbon::now()->translatedFormat('d F Y');
+@endphp
 
+<br><br><br>
+
+<table style="width: 100%; border-collapse: collapse; border: none; margin-top: 50px;">
+    <tr style="border: none;">
+        <td style="width: 60%; border: none;"></td>
+        <td style="text-align: center; border: none;">
+            Cirebon, {{ $tanggalCetak }}<br>
+            <strong>PT ARIDA</strong><br><br><br><br><br>
+            <u><strong>{{ $namaManager ?? 'Nama Manajer' }}</strong></u><br>
+            Manajer Produksi
+        </td>
+    </tr>
+</table>
 </body>
 </html>

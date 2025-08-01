@@ -48,47 +48,48 @@
     @endphp
 
     <!-- Dashboard -->
-    <li class="nav-item {{ request()->routeIs($role . '.dashboard') ? 'active' : '' }}">
-        <a class="nav-link" href="{{ $dashboardRoute }}">
-            <i class="fas fa-fw fa-tachometer-alt"></i>
-            <span>Dashboard</span>
-        </a>
-    </li>
+<li class="nav-item {{ request()->routeIs($role . '.dashboard') ? 'active' : '' }}">
+    <a class="nav-link" href="{{ $dashboardRoute }}">
+        <i class="fas fa-fw fa-tachometer-alt"></i>
+        <span>Dashboard</span>
+    </a>
+</li>
 
-    <hr class="sidebar-divider">
+<hr class="sidebar-divider">
 
-    <div class="sidebar-heading">Forecasting</div>
+<div class="sidebar-heading">Forecasting</div>
 
-    <!-- Data Produksi -->
-    <li class="nav-item {{ request()->routeIs('manajer.produksi.index') ? 'active' : '' }}">
-        <a class="nav-link" href="{{ route('manajer.produksi.index') }}">
-            <i class="fas fa-industry"></i>
-            <span>Data Produksi</span>
-        </a>
-    </li>
-     <!-- Data Bahan Baku -->
-    <li class="nav-item">
-        <a class="nav-link {{ request()->routeIs('manajer.bahanbaku.index') ? 'active' : '' }}" href="{{ route('manajer.bahanbaku.index') }}">
-    <i class="fas fa-fw fa-boxes"></i>
-    <span>Data Bahan Baku</span>
-</a>
-    </li>
+<!-- Data Produksi -->
+<li class="nav-item {{ request()->routeIs('manajer.produksi.index') ? 'active' : '' }}">
+    <a class="nav-link" href="{{ route('manajer.produksi.index') }}">
+        <i class="fas fa-industry"></i>
+        <span>Data Produksi</span>
+    </a>
+</li>
 
-    <!-- Data Peramalan -->
-    <li class="nav-item {{ request()->routeIs('manajer.peramalan.index') ? 'active' : '' }}">
-        <a class="nav-link" href="{{ route('manajer.peramalan.index') }}">
-            <i class="fas fa-fw fa-chart-line"></i>
-            <span>Data Peramalan</span>
-        </a>
-    </li>
+<!-- Data Bahan Baku -->
+<li class="nav-item {{ request()->routeIs('manajer.bahanbaku.index') ? 'active' : '' }}">
+    <a class="nav-link" href="{{ route('manajer.bahanbaku.index') }}">
+        <i class="fas fa-fw fa-boxes"></i>
+        <span>Data Bahan Baku</span>
+    </a>
+</li>
 
-    <!-- Data Hasil Pengujian -->
-    <li class="nav-item {{ request()->routeIs('pengujian.manajer.index') ? 'active' : '' }}">
-        <a class="nav-link" href="{{ route('pengujian.manajer.index') }}">
-            <i class="fas fa-fw fa-chart-line"></i>
-            <span>Data Pengujian</span>
-        </a>
-    </li>
+<!-- Data Peramalan -->
+<li class="nav-item {{ request()->routeIs('manajer.peramalan.index') ? 'active' : '' }}">
+    <a class="nav-link" href="{{ route('manajer.peramalan.index') }}">
+        <i class="fas fa-fw fa-chart-line"></i>
+        <span>Data Peramalan</span>
+    </a>
+</li>
+
+<!-- Data Hasil Pengujian -->
+<li class="nav-item {{ request()->routeIs('pengujian.manajer.index') ? 'active' : '' }}">
+    <a class="nav-link" href="{{ route('pengujian.manajer.index') }}">
+        <i class="fas fa-fw fa-chart-line"></i>
+        <span>Data Pengujian</span>
+    </a>
+</li>
 
     <!-- Divider -->
     <hr class="sidebar-divider d-none d-md-block">

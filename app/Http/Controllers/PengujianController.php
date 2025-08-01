@@ -10,6 +10,17 @@ use Carbon\Carbon;
 
 class PengujianController extends Controller
 {
+private function getKategoriAkurasi($mape)
+{
+    if ($mape <= 10) {
+        return 'Sangat Baik';
+    } elseif ($mape <= 20) {
+        return 'Baik';
+    } elseif ($mape <= 50) {
+        return 'Cukup';
+    }
+    return 'Kurang';
+}
     public function index()
     {
         $dataPeramalan = DataPeramalan::all();
@@ -93,6 +104,8 @@ class PengujianController extends Controller
         'hasil' => 0,
     ];
 
+
+
     if (!empty($data)) {
         $lastIndex = count($data) - 1;
         $lastRow = $data[$lastIndex];
@@ -103,16 +116,23 @@ class PengujianController extends Controller
         if ($bulanTerakhir && $tahunTerakhir && $prediksiTerakhir !== null) {
             $indexBulan = array_search($bulanTerakhir, $urutanBulan);
             if ($indexBulan !== false) {
-                $indexBulanSelanjutnya = $indexBulan;
+                $indexBulanSelanjutnya = $indexBulan + 1;
 
 if ($indexBulanSelanjutnya >= 12) {
     $indexBulanSelanjutnya = 0;
-    $tahunTerakhir;
+    $tahunBerikutnya = $tahunTerakhir + 1;
+} else {
+    $tahunBerikutnya = $tahunTerakhir;
 }
 
 $bulanBerikutnya = $urutanBulan[$indexBulanSelanjutnya];
 $tahunBerikutnya = $tahunTerakhir;
 
+// Tambah ini sebelum assign ke $prediksiBulanBerikutnya
+$nextIsForecastOnly = collect($data)->last()['aktual'] === null;
+if (!$nextIsForecastOnly) {
+    array_pop($data); // Hapus prediksi lebih dari 1 bulan ke depan jika ada
+}
 
                 $prediksiBulanBerikutnya = [
                     'bulan' => $bulanBerikutnya,
@@ -141,6 +161,8 @@ $tahunBerikutnya = $tahunTerakhir;
         'data_json'    => json_encode($payload),
     ]);
 
+    $akurasi = $this->getKategoriAkurasi($mape);
+
     // Kirim ke view hasil
     return view('ppic.pengujian.hasil', [
         'item' => $item,
@@ -158,7 +180,8 @@ $tahunBerikutnya = $tahunTerakhir;
             'produksi' => 'Produksi',
             'bahan_baku' => 'Bahan Baku',
         ],
-        'title' => 'Hasil Pengujian'
+        'title' => 'Hasil Pengujian',
+        'akurasi' => $akurasi,
     ]);
 }
 
@@ -186,14 +209,7 @@ $tahunBerikutnya = $tahunTerakhir;
     $hasilPeramalan = $payload['peramalan_berikutnya'] ?? 0;
 
     // Tentukan akurasi dari nilai MAPE
-    $akurasi = 'Kurang';
-    if ($item->mape <= 10) {
-        $akurasi = 'Sangat Baik';
-    } elseif ($item->mape <= 20) {
-        $akurasi = 'Baik';
-    } elseif ($item->mape <= 50) {
-        $akurasi = 'Cukup';
-    }
+    $akurasi = $this->getKategoriAkurasi($item->mape);
 
     // Tentukan periode awal dan akhir dari data aktual
     $periodeAwalBulan = '-';
@@ -331,18 +347,64 @@ public function indexManajer()
 
 public function detailManajer($id)
 {
-    $pengujian = DataPengujian::findOrFail($id);
+    $item = DataPengujian::findOrFail($id);
 
-    $hasil = json_decode($pengujian->data_json, true); // GANTI dari ->hasil ke ->data_json
+    // Decode data_json (payload hasil perhitungan di method hitung)
+    $payload = json_decode($item->data_json, true) ?? [];
+
+    $data = $payload['data'] ?? [];
+    $bulanBerikutnya = $payload['bulan_berikutnya'] ?? '-';
+    $tahunBerikutnya = $payload['tahun_berikutnya'] ?? '-';
+    $hasilPeramalan = $payload['peramalan_berikutnya'] ?? 0;
+
+    // Tentukan akurasi dari nilai MAPE
+   $akurasi = $this->getKategoriAkurasi($item->mape);
+
+    // Tentukan periode awal dan akhir dari data aktual
+    $periodeAwalBulan = '-';
+    $periodeAwalTahun = '-';
+    $periodeAkhirBulan = '-';
+    $periodeAkhirTahun = '-';
+
+    // Cari periode awal (data aktual pertama)
+    foreach ($data as $row) {
+        if (isset($row['aktual']) && $row['aktual'] !== null) {
+            $periodeAwalBulan = $row['periode'] ?? '-';
+            $periodeAwalTahun = $row['tahun'] ?? '-';
+            break;
+        }
+    }
+
+    // Cari periode akhir (data aktual terakhir)
+    for ($i = count($data) - 1; $i >= 0; $i--) {
+        if (isset($data[$i]['aktual']) && $data[$i]['aktual'] !== null) {
+            $periodeAkhirBulan = $data[$i]['periode'] ?? '-';
+            $periodeAkhirTahun = $data[$i]['tahun'] ?? '-';
+            break;
+        }
+    }
 
     return view('manajer.pengujian.detail', [
-        'title' => 'Detail Hasil Pengujian',
-        'pengujian' => $pengujian,
-        'hasil' => is_array($hasil) ? $hasil : [], // biar aman
-        'mse' => $pengujian->mse/1000000,
-        'mape' => $pengujian->mape,
-    ]);
+    'item' => $item,
+    'data' => $data,
+    'mse' => $item->mse / 1000000,
+    'mape' => $item->mape,
+    'bulanAwal' => $periodeAwalBulan,
+    'tahunAwal' => $periodeAwalTahun,
+    'bulanAkhir' => $periodeAkhirBulan,
+    'tahunAkhir' => $periodeAkhirTahun,
+    'bulanBerikutnya' => $bulanBerikutnya,
+    'tahunBerikutnya' => $tahunBerikutnya,
+    'hasilPeramalan' => $hasilPeramalan,
+    'akurasi' => $akurasi,
+    'kategoriMap' => [
+        'produksi' => 'Produksi',
+        'bahan_baku' => 'Bahan Baku',
+    ],
+    'title' => 'Detail Hasil Pengujian'
+]);
 }
+
 
 
 // DOWNLOAD PDF (jika tombol download diklik)
@@ -358,19 +420,38 @@ public function downloadManajer($id)
     ];
 
     $item = $data;
-    $mse = $data->mse/1000000;
+    $mse = $data->mse;
     $mape = $data->mape;
 
-    // Ambil data hasil yang sudah disimpan oleh PPIC
     $hasil = json_decode($data->data_json, true);
-    $hasil = is_array($hasil) ? $hasil : []; // fallback kalau null
+    $hasil = is_array($hasil) ? $hasil : [];
 
-    $pdf = Pdf::loadView('manajer.pengujian.pdf', [
-        'data' => $hasil,
+    $dataArray = $hasil['data'] ?? [];
+
+    $periodeAwal = '-';
+    $periodeAkhir = '-';
+    $bulanBerikutnya = $hasil['bulan_berikutnya'] ?? '-';
+    $tahunBerikutnya = $hasil['tahun_berikutnya'] ?? '-';
+    $hasilPeramalan = $hasil['peramalan_berikutnya'] ?? 0;
+
+    if (!empty($dataArray)) {
+        $first = reset($dataArray);
+        $last = end($dataArray);
+        $periodeAwal = ($first['periode'] ?? $first['bulan'] ?? '-') . ' ' . ($first['tahun'] ?? '-');
+        $periodeAkhir = ($last['periode'] ?? $last['bulan'] ?? '-') . ' ' . ($last['tahun'] ?? '-');
+    }
+
+    $pdf = Pdf::loadView('ppic.pengujian.pdf', [
+        'data' => $dataArray,
         'item' => $item,
-        'mse' => $mse,
+        'mse' => $mse/1000000,
         'mape' => $mape,
         'kategoriMap' => $kategoriMap,
+        'periodeAwal' => $periodeAwal,
+        'periodeAkhir' => $periodeAkhir,
+        'bulanBerikutnya' => $bulanBerikutnya,
+        'tahunBerikutnya' => $tahunBerikutnya,
+        'hasilPeramalan' => $hasilPeramalan,
     ]);
 
     return $pdf->stream('laporan_pengujian_manajer.pdf');

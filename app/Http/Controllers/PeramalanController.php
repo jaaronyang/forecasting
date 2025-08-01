@@ -25,6 +25,7 @@ class PeramalanController extends Controller
             'title' => 'Peramalan Data'
         ]);
     }
+
 public function proses(Request $request)
 {
     $kategori = $request->kategori;
@@ -147,20 +148,41 @@ if ($jumlahData <= 13) {
     }
 
     $flrg = [];
-    foreach ($flr as $relasi) {
-        [$from, $to] = explode(' → ', $relasi['relasi']);
-        $flrg[$from][] = $to;
-    }
 
-    uksort($flrg, function ($a, $b) {
-        return (int) filter_var($a, FILTER_SANITIZE_NUMBER_INT) - (int) filter_var($b, FILTER_SANITIZE_NUMBER_INT);
+// Buat FLRG: setiap from bisa punya banyak to
+foreach ($flr as $relasi) {
+    [$from, $to] = explode(' → ', $relasi['relasi']);
+    $flrg[$from][] = $to;
+}
+
+// Hilangkan duplikat dan urutkan isi relasi (value)
+foreach ($flrg as $from => $tos) {
+    // Buang duplikat
+    $tos = array_unique($tos);
+    // Urutkan isi relasi
+    usort($tos, function ($a, $b) {
+        return (int) filter_var($a, FILTER_SANITIZE_NUMBER_INT) <=> (int) filter_var($b, FILTER_SANITIZE_NUMBER_INT);
     });
+    $flrg[$from] = $tos;
+}
+
+// Urutkan key berdasarkan angka di A1, A2, dst (bukan string biasa)
+uksort($flrg, function ($a, $b) {
+    return (int) filter_var($a, FILTER_SANITIZE_NUMBER_INT) <=> (int) filter_var($b, FILTER_SANITIZE_NUMBER_INT);
+});
+
 
     $labelToMidValue = [];
-    foreach ($fuzzySets as $set) {
-        [$awal, $akhir] = explode(' - ', $set['range']);
-        $labelToMidValue[$set['label']] = ($awal + $akhir) / 2;
-    }
+foreach ($fuzzySets as $set) {
+    [$awal, $akhir] = explode(' - ', $set['range']);
+
+    // Konversi ke float agar tidak terjadi penjumlahan string
+    $awal = (float) $awal;
+    $akhir = (float) $akhir;
+
+    // Hitung nilai tengah (midpoint)
+    $labelToMidValue[$set['label']] = round(($awal + $akhir) / 2, 2);
+}
 
     $defuzzifikasi = [];
 
@@ -279,7 +301,6 @@ $lastIndex = count($defuzzifikasi) - 2; // -2 karena yang terakhir biasanya untu
 $bulanAkhir = $defuzzifikasi[$lastIndex]['periode'] ?? '-';
 $tahunAkhir = $defuzzifikasi[$lastIndex]['tahun'] ?? '-';
 
-
     return view('ppic.peramalan.hasil', compact(
         'kategori', 'jenis_barang', 'tahun',
         'semesta', 'fuzzySets', 'fuzzifikasi', 'flr', 'flrg', 'defuzzifikasi', 'hasilPeramalanTerakhir', 'item', 'nilaiTerendah', 'nilaiTertinggi', 'jumlahData',
@@ -333,6 +354,18 @@ return view('manajer.peramalan.index', [
     $bulanAkhir = $defuzzifikasi[$lastIndex]['periode'] ?? '-';
     $tahunAkhir = $defuzzifikasi[$lastIndex]['tahun'] ?? '-';
 
+    // Urutkan fuzzy sets (array asosiatif dengan key A1, A2, ...)
+    $fuzzySets = $data['fuzzySets'] ?? [];
+    uksort($fuzzySets, function ($a, $b) {
+        return intval(substr($a, 1)) <=> intval(substr($b, 1));
+    });
+
+    // Urutkan FLRG berdasarkan key (misalnya A1, A2, ...)
+    $flrg = $data['flrg'] ?? [];
+    uksort($flrg, function ($a, $b) {
+        return intval(substr($a, 1)) <=> intval(substr($b, 1));
+    });
+
     // Buat ulang object item agar kompatibel dengan blade
     $item = (object)[
         'kategori' => $itemData->kategori,
@@ -343,10 +376,10 @@ return view('manajer.peramalan.index', [
     return view('ppic.peramalan.detail', [
         'item' => $item,
         'semesta' => $data['semesta'],
-        'fuzzySets' => $data['fuzzySets'],
+        'fuzzySets' => $fuzzySets,
         'fuzzifikasi' => $fuzzifikasi,
         'flr' => $data['flr'],
-        'flrg' => $data['flrg'],
+        'flrg' => $flrg,
         'defuzzifikasi' => $defuzzifikasi,
         'hasilPeramalanTerakhir' => end($defuzzifikasi),
         'bulanAwal' => $bulanAwal,
@@ -371,7 +404,6 @@ return view('manajer.peramalan.index', [
     $defuzzifikasi = $data['defuzzifikasi'] ?? [];
 
     // Ambil periode awal dari fuzzifikasi pertama
-    $fuzzifikasi = $data['fuzzifikasi'] ?? [];
     $bulanAwal = $fuzzifikasi[0]['bulan'] ?? '-';
     $tahunAwal = $fuzzifikasi[0]['tahun'] ?? '-';
 
@@ -389,13 +421,17 @@ return view('manajer.peramalan.index', [
     $nilaiTerendah = $jumlahData > 0 ? min($aktual) : 0;
     $nilaiTertinggi = $jumlahData > 0 ? max($aktual) : 0;
 
+    // Urutkan fuzzy sets berdasarkan label (A1, A2, A3, ...)
+    $fuzzySets = $data['fuzzySets'] ?? [];
+    ksort($fuzzySets); // <--- TAMBAHKAN INI
+
     // Kirim data ke view PDF
     $pdf = Pdf::loadView('ppic.peramalan.pdf', [
         'item' => $item,
         'data' => $data,
         'fuzzifikasi' => $fuzzifikasi,
         'semesta' => $data['semesta'],
-        'fuzzySets' => $data['fuzzySets'],
+        'fuzzySets' => $fuzzySets, // gunakan hasil yang sudah diurutkan
         'flr' => $data['flr'],
         'flrg' => $data['flrg'],
         'defuzzifikasi' => $defuzzifikasi,
@@ -414,7 +450,6 @@ return view('manajer.peramalan.index', [
     $filename = 'Peramalan_' . $item->kategori . '_' . $item->jenis_barang . '_' . now()->format('Ymd_His') . '.pdf';
     return $pdf->stream($filename);
 }
-
 
 
     public function preview($id)
@@ -459,17 +494,66 @@ public function indexManajer()
 
 public function detailManajer($id)
 {
-    $item = DataPeramalan::findOrFail($id);
-    $data = json_decode($item->hasil_peramalan, true);
+    $itemData = DataPeramalan::findOrFail($id);
+    $data = json_decode($itemData->hasil_peramalan, true);
+
+    $defuzzifikasi = $data['defuzzifikasi'] ?? [];
+
+    // Ambil hanya nilai aktual yang tidak null
+    $aktualValues = collect($defuzzifikasi)
+        ->pluck('aktual')
+        ->filter(fn($val) => !is_null($val))
+        ->values();
+
+    $nilaiTerendah = $aktualValues->min() ?? 0;
+    $nilaiTertinggi = $aktualValues->max() ?? 0;
+    $jumlahData = $aktualValues->count();
+
+    // Ambil periode awal dari fuzzifikasi
+    $fuzzifikasi = $data['fuzzifikasi'] ?? [];
+    $bulanAwal = $fuzzifikasi[0]['bulan'] ?? '-';
+    $tahunAwal = $fuzzifikasi[0]['tahun'] ?? '-';
+
+    // Ambil periode akhir dari defuzzifikasi (sebelum prediksi)
+    $lastIndex = count($defuzzifikasi) - 2; // -2 karena terakhir biasanya hasil prediksi
+    $bulanAkhir = $defuzzifikasi[$lastIndex]['periode'] ?? '-';
+    $tahunAkhir = $defuzzifikasi[$lastIndex]['tahun'] ?? '-';
+
+    // Urutkan fuzzy sets (array asosiatif dengan key A1, A2, ...)
+    $fuzzySets = $data['fuzzySets'] ?? [];
+    uksort($fuzzySets, function ($a, $b) {
+        return intval(substr($a, 1)) <=> intval(substr($b, 1));
+    });
+
+    // Urutkan FLRG berdasarkan key (misalnya A1, A2, ...)
+    $flrg = $data['flrg'] ?? [];
+    uksort($flrg, function ($a, $b) {
+        return intval(substr($a, 1)) <=> intval(substr($b, 1));
+    });
+
+    // Buat ulang object item agar kompatibel dengan blade
+    $item = (object)[
+        'kategori' => $itemData->kategori,
+        'jenis_barang' => $itemData->jenis_barang,
+        'tahun' => $itemData->tahun,
+    ];
 
     return view('manajer.peramalan.detail', [
         'item' => $item,
         'semesta' => $data['semesta'],
-        'fuzzySets' => $data['fuzzySets'],
-        'fuzzifikasi' => $data['fuzzifikasi'],
+        'fuzzySets' => $fuzzySets,
+        'fuzzifikasi' => $fuzzifikasi,
         'flr' => $data['flr'],
-        'flrg' => $data['flrg'],
-        'defuzzifikasi' => $data['defuzzifikasi'],
+        'flrg' => $flrg,
+        'defuzzifikasi' => $defuzzifikasi,
+        'hasilPeramalanTerakhir' => end($defuzzifikasi),
+        'bulanAwal' => $bulanAwal,
+        'tahunAwal' => $tahunAwal,
+        'bulanAkhir' => $bulanAkhir,
+        'tahunAkhir' => $tahunAkhir,
+        'jumlahData' => $jumlahData,
+        'nilaiTerendah' => $nilaiTerendah,
+        'nilaiTertinggi' => $nilaiTertinggi,
         'title' => 'Detail Peramalan'
     ]);
 }
@@ -493,10 +577,55 @@ public function downloadManajer($id)
     $item = DataPeramalan::findOrFail($id);
     $data = json_decode($item->hasil_peramalan, true);
 
-    $pdf = PDF::loadView('manajer.peramalan.pdf', compact('item', 'data'));
+    // Ambil data awal dan akhir dari fuzzifikasi & defuzzifikasi
+    $fuzzifikasi = $data['fuzzifikasi'] ?? [];
+    $defuzzifikasi = $data['defuzzifikasi'] ?? [];
+
+    // Ambil periode awal dari fuzzifikasi pertama
+    $bulanAwal = $fuzzifikasi[0]['bulan'] ?? '-';
+    $tahunAwal = $fuzzifikasi[0]['tahun'] ?? '-';
+
+    // Ambil periode akhir dari defuzzifikasi terakhir (bukan hasil ramalan terakhir)
+    $lastIndex = count($defuzzifikasi) - 2; // -2 karena terakhir biasanya hasil prediksi
+    $bulanAkhir = $defuzzifikasi[$lastIndex]['periode'] ?? '-';
+    $tahunAkhir = $defuzzifikasi[$lastIndex]['tahun'] ?? '-';
+
+    // Ambil hasil peramalan terakhir
+    $hasilPeramalanTerakhir = end($defuzzifikasi);
+
+    // Ambil data aktual untuk menghitung statistik
+    $aktual = array_filter(array_column($defuzzifikasi, 'aktual'));
+    $jumlahData = count($aktual);
+    $nilaiTerendah = $jumlahData > 0 ? min($aktual) : 0;
+    $nilaiTertinggi = $jumlahData > 0 ? max($aktual) : 0;
+
+    // Urutkan fuzzy sets berdasarkan label (A1, A2, A3, ...)
+    $fuzzySets = $data['fuzzySets'] ?? [];
+    ksort($fuzzySets); // <--- TAMBAHKAN INI
+
+    // Kirim data ke view PDF
+    $pdf = Pdf::loadView('ppic.peramalan.pdf', [
+        'item' => $item,
+        'data' => $data,
+        'fuzzifikasi' => $fuzzifikasi,
+        'semesta' => $data['semesta'],
+        'fuzzySets' => $fuzzySets, // gunakan hasil yang sudah diurutkan
+        'flr' => $data['flr'],
+        'flrg' => $data['flrg'],
+        'defuzzifikasi' => $defuzzifikasi,
+        'hasilPeramalanTerakhir' => $hasilPeramalanTerakhir,
+
+        // Variabel tambahan untuk kesimpulan
+        'bulanAwal' => $bulanAwal,
+        'tahunAwal' => $tahunAwal,
+        'bulanAkhir' => $bulanAkhir,
+        'tahunAkhir' => $tahunAkhir,
+        'jumlahData' => $jumlahData,
+        'nilaiTerendah' => $nilaiTerendah,
+        'nilaiTertinggi' => $nilaiTertinggi,
+    ]);
 
     $filename = 'Peramalan_' . $item->kategori . '_' . $item->jenis_barang . '_' . now()->format('Ymd_His') . '.pdf';
-
-    return $pdf->stream($filename); // pakai stream untuk preview, pakai ->download() kalau mau langsung download
+    return $pdf->stream($filename);
 }
 }

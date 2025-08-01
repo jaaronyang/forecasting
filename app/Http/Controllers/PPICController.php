@@ -37,17 +37,20 @@ class PPICController extends DashboardBaseController
         }
 
         $bulan = [];
+        $tahun = [];
         $aktual = [];
         $hasil = [];
 
         foreach ($hasilPeramalan['defuzzifikasi'] as $item) {
             $bulan[] = $item['periode'] ?? '-';
+            $tahun[] = $item['tahun'] ?? '-';
             $aktual[] = $item['aktual'] ?? 0;
             $hasil[] = $item['hasil'] ?? 0;
         }
 
         $dataChart[$label] = [
             'bulan' => $bulan,
+            'tahun' => $tahun,
             'aktual' => $aktual,
             'hasil' => $hasil,
         ];

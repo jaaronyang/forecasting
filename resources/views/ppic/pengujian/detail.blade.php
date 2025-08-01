@@ -30,27 +30,24 @@
     <strong>{{ number_format($mse, 3, '.', '.') }}</strong> dan nilai
     <strong>Mean Absolute Percentage Error (MAPE)</strong> adalah
     <strong>{{ number_format($mape, 3, '.', '.') }}%</strong>. Berdasarkan nilai tersebut, tingkat akurasi peramalan dikategorikan
-    <strong>
-        @if ($item->mape <= 10)
-            Sangat Baik
-        @elseif ($item->mape <= 20)
-            Baik
-        @elseif ($item->mape <= 50)
-            Cukup
-        @else
-            Kurang
-        @endif
-    </strong>.
-    Selain itu, diperoleh hasil nilai peramalan pada periode selanjutnya yaitu
-    <strong>{{ $bulanBerikutnya }} {{ $tahunBerikutnya }}</strong> sebesar
-    <strong>{{ number_format($hasilPeramalan, 0, '.', '.') }}</strong>. Nilai ini menunjukkan bahwa metode yang digunakan dalam sistem
-    @if ($item->mape <= 20)
+<strong>{{ $akurasi }}</strong>
+Selain itu, diperoleh hasil nilai peramalan pada periode selanjutnya yaitu
+<strong>{{ $bulanBerikutnya }} {{ $tahunBerikutnya }}</strong> sebesar
+<strong>{{ number_format($hasilPeramalan, 0, '.', '.') }}</strong>. Nilai ini menunjukkan bahwa metode yang digunakan dalam sistem
+
+@switch($akurasi)
+    @case('Sangat Baik')
+    @case('Baik')
         layak dijadikan acuan dalam pengambilan keputusan produksi dan pengadaan bahan baku.
-    @else
+        @break
+
+    @case('Cukup')
+    @case('Kurang')
         masih perlu dilakukan evaluasi lebih lanjut untuk meningkatkan akurasi pada masa mendatang.
-    @endif
+        @break
+@endswitch
 </p>
-    </div>
+
 
     <div class="row">
         <div class="col-md-6 mb-3">

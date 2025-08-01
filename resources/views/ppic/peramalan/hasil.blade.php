@@ -69,6 +69,7 @@ $tahunList = is_array($item->tahun) ? $item->tahun : json_decode($item->tahun, t
         <tr>
             <th>Interval</th>
             <th>Fuzzy Set</th>
+            <th>Nilai Tengah</th> {{-- ✅ Tambahkan kolom ini --}}
         </tr>
     </thead>
     <tbody>
@@ -77,16 +78,19 @@ $tahunList = is_array($item->tahun) ? $item->tahun : json_decode($item->tahun, t
             <td>
                 @php
                     [$awal, $akhir] = explode(' - ', $fs['range']);
-                    $awal = number_format($awal, 0, ',', '.');
-                    $akhir = number_format($akhir, 0, ',', '.');
+                    $awalFormatted = number_format($awal, 0, ',', '.');
+                    $akhirFormatted = number_format($akhir, 0, ',', '.');
+                    $midpoint = number_format(($awal + $akhir) / 2, 2, ',', '.'); // ✅ Hitung nilai tengah
                 @endphp
-                {{ $awal }} - {{ $akhir }}
+                {{ $awalFormatted }} - {{ $akhirFormatted }}
             </td>
             <td>{{ $fs['label'] }}</td>
+            <td>{{ $midpoint }}</td> {{-- ✅ Tampilkan nilai tengah --}}
         </tr>
         @endforeach
     </tbody>
 </table>
+
 
     {{-- 3. Fuzzifikasi --}}
     <h5 class="mt-4">3. Fuzzifikasi Data Historis</h5>
